@@ -1,3 +1,5 @@
+import requests
+import os
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from flask_jwt_extended import (
@@ -9,30 +11,57 @@ from flask_jwt_extended import (
 )
 from passlib.hash import pbkdf2_sha256
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy import or_
 
 from db import db
 from blocklist import BLOCKLIST
 from models import UserModel
-from schemas import UserSchema
+from schemas import UserSchema, UserRegisterSchema
 
 
 blp = Blueprint("Users", "users", description="Operations on users")
 
+def send_simple_message(receiver, subject, body):
+    domain = os.getenv("MAILGUN_DOMAIN")
+    api_key = os.getenv("MAILGUN_API_KEY")
+    return requests.post(
+		f"https://api.mailgun.net/v3/{domain}/messages",
+		auth=("api", api_key),
+		data={"from": f"Kalle <mailgun@{domain}>",
+			"to": [receiver],
+			"subject": subject,
+			"text": body})
+
 @blp.route("/register")
 class RegisterUser(MethodView):
-    @blp.arguments(UserSchema)
-    @blp.response(201, UserSchema)
+    @blp.arguments(UserRegisterSchema)
     def post(self, user_data):
+
         username = user_data["username"]
+        user_email = user_data["user_email"]
         password_hash = pbkdf2_sha256.hash(user_data["password"])
+        if UserModel.query.filter(
+            or_(
+                UserModel.username == username,
+                UserModel.user_email == user_email
+            )
+        ).first():
+            abort(409, message="Username or email already in use")
+        
         user = UserModel(
             username=username, 
+            user_email=user_email,
             password=password_hash
             )
         
         try:
             db.session.add(user)
             db.session.commit()
+            
+            send_simple_message(
+                receiver=user.user_email, 
+                subject="Welcome to Stores!", 
+                body=f"USE THIS API OR DIE, {user.username}")
         except IntegrityError as e:
             abort(500, message='Username already exists')
         except SQLAlchemyError as e:
@@ -44,7 +73,7 @@ class RegisterUser(MethodView):
 
 @blp.route("/user/<int:user_id>")
 class User(MethodView):
-    @blp.response(200, UserSchema)
+    @blp.response(200, UserRegisterSchema)
     def get(self, user_id):
         user = UserModel.query.get_or_404(user_id)
         return user

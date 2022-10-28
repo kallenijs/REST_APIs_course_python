@@ -6,11 +6,11 @@ Reload terminal
 2. `pip install -r requirements.txt`
 
 # Run with docker
-1. In terminal, on the level of the Dockerfile: `docker build -t rest-apis-flask-python .`
+1. In terminal, on the level of the Dockerfile: ``
 2. In terminal: `docker run -d -p 5000:5000 rest-apis-flask-python`
 
 With automatic reloading for development:
-`docker run -dp 5000:5000 -w /app -v "/c/Users/kalle/OneDrive/Documenten/rest-apis-flask-python/project/01-first-rest-api:/app" rest-apis-flask-python`
+`docker run -dp 5000:5000 -w /app -v "/c/Users/kalle/OneDrive/Documenten/rest-apis-flask-python/project/01-first-rest-api:/app" rest-apis-flask-python sh -c "flask run --host 0.0.0.0"`
 
 # Run with flask
 In terminal: `flask run`
